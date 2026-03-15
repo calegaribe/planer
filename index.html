@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Planner Semanal</title>
+
+<link rel="manifest" href="manifest.json">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+--bg1:#ffe3f1;
+--bg2:#efe7ff;
+--accent:#ff7aa8;
+}
+
+body{
+margin:0;
+font-family:Quicksand;
+background:linear-gradient(180deg,var(--bg1),var(--bg2));
+color:#444;
+}
+
+header{
+background:linear-gradient(135deg,#ff9ac6,#caa6ff);
+color:white;
+padding:20px;
+text-align:center;
+font-family:Poppins;
+}
+
+.container{padding:20px}
+
+.topbar{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+margin-bottom:20px;
+}
+
+button{
+border:none;
+border-radius:12px;
+padding:10px 16px;
+font-family:Quicksand;
+cursor:pointer;
+}
+
+.addBtn{background:#ff8dc7;color:white}
+.pdfBtn{background:#7ed6b8;color:white}
+.installBtn{background:#6c8cff;color:white}
+
+/* CALENDARIO */
+
+.calendar-wrapper{
+display:grid;
+grid-template-columns:80px repeat(7,1fr);
+}
+
+.hour-column{
+background:#ffffff;
+border-right:1px solid #eee;
+}
+
+.hour{
+height:60px;
+font-size:12px;
+text-align:right;
+padding-right:6px;
+color:#888;
+border-bottom:1px solid #f1f1f1;
+}
+
+.day{
+background:#fff;
+border-right:1px solid #eee;
+position:relative;
+}
+
+.day-header{
+text-align:center;
+font-weight:600;
+padding:6px;
+background:#ffd6ec;
+border-bottom:1px solid #eee;
+}
+
+.timeline{
+position:relative;
+height:1440px;
+background:
+repeating-linear-gradient(
+to bottom,
+#fafafa,
+#fafafa 59px,
+#eee 60px
+);
+}
+
+/* EVENTOS */
+
+.event{
+position:absolute;
+left:6px;
+right:6px;
+border-radius:12px;
+padding:6px;
+font-size:12px;
+color:white;
+cursor:pointer;
+}
+
+.event.trabalho{background:#ff7a7a;}
+.event.faculdade{background:#6c8cff;}
+.event.namoro{background:#ff4fa3;}
+.event.familia{background:#ffa64f;}
+.event.saude{background:#44c4a1;}
+.event.outro{background:#b57dff;}
+
+.event.done{opacity:0.5}
+
+/* MODAL */
+
+.modal{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,0.4);
+display:none;
+align-items:center;
+justify-content:center;
+}
+
+.modal-box{
+background:white;
+padding:20px;
+border-radius:18px;
+width:300px;
+}
+
+.modal-box input,
+.modal-box select{
+width:100%;
+padding:8px;
+margin-top:6px;
+border-radius:8px;
+border:1px solid #ddd;
+}
+
+/* MODAL EVENTO */
+
+.eventModal{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,0.4);
+display:none;
+align-items:center;
+justify-content:center;
+}
+
+.eventModalBox{
+background:white;
+padding:20px;
+border-radius:16px;
+width:280px;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+.eventModalBox textarea{
+width:100%;
+height:80px;
+border-radius:8px;
+border:1px solid #ddd;
+padding:6px;
+resize:none;
+}
+
+.eventButtons{
+display:flex;
+flex-wrap:wrap;
+gap:6px;
+}
+
+.eventButtons button{
+flex:1;
+font-size:12px;
+}
+
+</style>
+</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<body>
+
+<header>
+<h1>Planner Semanal ✨</h1>
+<p>Agenda pessoal</p>
+</header>
+
+<div class="container">
+
+<div class="topbar">
+
+<button class="addBtn" onclick="openModal()">➕ Adicionar</button>
+
+<button class="pdfBtn" onclick="exportPDF()">📄 Exportar PDF</button>
+
+<button class="installBtn">📱 Instalar</button>
+</div>
+
+<div class="calendar-wrapper" id="calendar"></div>
+
+</div>
+
+<!-- MODAL CRIAR -->
+
+<div class="modal" id="modal">
+<div class="modal-box">
+
+<h3>Novo compromisso</h3>
+
+<label>Dia</label>
+
+<select id="dayInput">
+<option value="0">Segunda</option>
+<option value="1">Terça</option>
+<option value="2">Quarta</option>
+<option value="3">Quinta</option>
+<option value="4">Sexta</option>
+<option value="5">Sábado</option>
+<option value="6">Domingo</option>
+</select>
+
+<label>Compromisso</label>
+<input id="taskInput">
+
+<label>Horário</label>
+<input id="timeInput" type="time">
+
+<label>Duração (min)</label>
+<input id="durationInput" type="number" value="60">
+
+<label>Tipo</label>
+
+<select id="typeInput">
+<option value="faculdade">🎓 Faculdade</option>
+<option value="namoro">❤️ Namoro</option>
+<option value="familia">👨‍👩‍👧 Família</option>
+<option value="saude">🏃 Saúde</option>
+<option value="outro">📌 Outro</option>
+<option value="cafe_manha">☕ Café da manhã</option>
+<option value="almoco">🍽️ Almoço</option>
+<option value="cafe_tarde">🫖 Café da tarde</option>
+<option value="janta">🍝 Janta</option>
+<option value="banho">🚿 Banho</option>
+<option value="se_arrumar">🪞 Se arrumar</option>
+<option value="dormir">😴 Dormir</option>
+<option value="organizacao">🧹 Organização</option>
+<option value="carro">🚗 Carro</option>
+<option value="descanso">🛋️ Descanso</option>
+<option value="freelancer">💻 Freelancer</option>
+<option value="trabalho_presencial">🏢 Trabalho presencial</option>
+<option value="trabalho_home">🏠 Trabalho home office</option>
+</select>
+
+<button onclick="addTask()" style="margin-top:10px">Salvar</button>
+<button onclick="closeModal()">Fechar</button>
+
+</div>
+</div>
+
+<!-- MODAL EVENTO -->
+
+<div class="eventModal" id="eventModal">
+
+<div class="eventModalBox">
+
+<h3 id="eventTitle"></h3>
+
+<textarea id="noteInput" placeholder="Adicionar nota..."></textarea>
+
+<div class="eventButtons">
+
+<button onclick="saveNote()">💾 Salvar</button>
+
+<button onclick="markDone()">✅ Concluir</button>
+
+<button onclick="removeEvent()">🗑 Remover</button>
+
+<button onclick="closeEventModal()">Fechar</button>
+
+</div>
+
+</div>
+</div>
+
+<script>
+
+const days=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"]
+
+let tasks=JSON.parse(localStorage.getItem("plannerTasks")||"[]")
+
+let currentEvent=null
+
+function save(){
+
+localStorage.setItem("plannerTasks",JSON.stringify(tasks))
+
+}
+
+function timeToMinutes(t){
+
+let p=t.split(":")
+return p[0]*60+ +p[1]
+
+}
+
+function render(){
+
+const cal=document.getElementById("calendar")
+
+cal.innerHTML=""
+
+let hourCol=document.createElement("div")
+hourCol.className="hour-column"
+
+for(let h=0;h<24;h++){
+
+let div=document.createElement("div")
+div.className="hour"
+
+div.innerText=("0"+h).slice(-2)+":00"
+
+hourCol.appendChild(div)
+
+}
+
+cal.appendChild(hourCol)
+
+for(let d=0;d<7;d++){
+
+let day=document.createElement("div")
+day.className="day"
+
+let header=document.createElement("div")
+header.className="day-header"
+header.innerText=days[d]
+
+let timeline=document.createElement("div")
+timeline.className="timeline"
+
+tasks.forEach((t,i)=>{
+
+if(t.day!=d)return
+
+let e=document.createElement("div")
+
+e.className="event "+t.type
+
+if(t.done)e.classList.add("done")
+
+let start=timeToMinutes(t.time)
+
+e.style.top=start+"px"
+
+e.style.height=t.duration+"px"
+
+e.innerHTML="<b>"+t.time+"</b><br>"+t.text
+
+e.onclick=()=>openEventModal(i)
+
+timeline.appendChild(e)
+
+})
+
+day.appendChild(header)
+day.appendChild(timeline)
+
+cal.appendChild(day)
+
+}
+
+}
+
+function openModal(){modal.style.display="flex"}
+function closeModal(){modal.style.display="none"}
+
+function addTask(){
+
+let day=+dayInput.value
+let text=taskInput.value
+let time=timeInput.value
+let duration=+durationInput.value
+let type=typeInput.value
+
+if(!text||!time)return
+
+tasks.push({day,text,time,duration,type,done:false,note:""})
+
+save()
+
+closeModal()
+
+render()
+
+}
+
+/* EVENTO */
+
+function openEventModal(i){
+
+currentEvent=i
+
+let task=tasks[i]
+
+eventTitle.innerText=task.text+" ("+task.time+")"
+
+noteInput.value=task.note||""
+
+eventModal.style.display="flex"
+
+}
+
+function closeEventModal(){
+
+eventModal.style.display="none"
+
+}
+
+function saveNote(){
+
+tasks[currentEvent].note=noteInput.value
+
+save()
+render()
+
+closeEventModal()
+
+}
+
+function markDone(){
+
+tasks[currentEvent].done=!tasks[currentEvent].done
+
+save()
+render()
+
+closeEventModal()
+
+}
+
+function removeEvent(){
+
+tasks.splice(currentEvent,1)
+
+save()
+render()
+
+closeEventModal()
+
+}
+
+/* EXPORTAR PDF */
+
+function exportarPDF(){
+
+const elemento = document.querySelector(".planner");
+
+const opt = {
+margin: 0.5,
+filename: "planner-semanal.pdf",
+image: { type: 'jpeg', quality: 1 },
+html2canvas: { scale: 2 },
+jsPDF: { unit: 'cm', format: 'a4', orientation: 'landscape' }
+};
+
+html2pdf().set(opt).from(elemento).save();
+
+}
+/* INSTALAR APP */
+
+let deferredPrompt;
+const installBtn = document.querySelector(".installBtn");
+
+window.addEventListener("beforeinstallprompt", (e) => {
+
+e.preventDefault();
+
+deferredPrompt = e;
+
+});
+
+installBtn.addEventListener("click", async () => {
+
+if(!deferredPrompt){
+alert("Instalação não disponível ainda. Abra o site em HTTPS ou localhost.");
+return;
+}
+
+deferredPrompt.prompt();
+
+const { outcome } = await deferredPrompt.userChoice;
+
+if(outcome === "accepted"){
+console.log("App instalado");
+}
+
+deferredPrompt = null;
+
+});
+
+/* SERVICE WORKER */
+
+ if("serviceWorker" in navigator){
+ navigator.serviceWorker.register("service-worker.js") }
+
+render()
+
+// pedir permissão
+if ("Notification" in window) {
+    Notification.requestPermission();
+}
+
+function notificarEvento(titulo, horario){
+
+    if(Notification.permission === "granted"){
+
+        new Notification("Planner Semanal", {
+            body: titulo + " às " + horario,
+            icon: "icon-192.png"
+        });
+
+    }
+
+}
+
+</script>
+
+</body>
+</html>
